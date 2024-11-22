@@ -1,0 +1,41 @@
+name: CMake Workflow
+
+on:
+  push:
+    branches: ["main"]
+    tags:
+      - '*'
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y clang-format clang-tidy libcunit1 libcunit1-doc libcunit1-dev cmake valgrind libcriterion-dev
+
+      - name: Configure CMake
+        run: cmake -B build -S .
+
+      - name: Run Formatter
+        run: cmake --build build --target format
+
+      - name: Run Linter
+        run: cmake --build build --target lint
+
+      - name: Build Project
+        run: cmake --build build
+
+      - name: Run Tests
+        run: ctest --output-on-failure --test-dir build
+
+      - name: Run Valgrind
+        continue-on-error: true
+        run: |
+          valgrind --leak-check=full bin/z
