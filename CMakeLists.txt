@@ -28,8 +28,8 @@ target_include_directories(z PRIVATE "${INCLUDE_DIR}")
 set_target_properties(z PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 
 # Define clang-tidy and clang-format commands as custom targets
-find_program(LINTER clang-tidy)
-find_program(FORMATTER clang-format)
+find_program(LINTER clang-tidy-18)
+find_program(FORMATTER clang-format-18)
 
 add_custom_target(lint
     COMMAND ${LINTER} -p ${CMAKE_BINARY_DIR} --config-file=${CMAKE_SOURCE_DIR}/.clang-tidy ${SRC_DIR}/*.c ${INCLUDE_DIR}/*.h ${TESTS_DIR}/*.c
