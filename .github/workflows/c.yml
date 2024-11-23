@@ -23,6 +23,11 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 18 
 
+      - name: Verify clang versions
+        run: |
+          clang-format --version
+          clang-tidy --version
+
       - name: Configure CMake
         run: cmake -B build -S .
 
@@ -38,7 +43,7 @@ jobs:
         run: cmake --build build
 
       - name: Run Tests
-        run: ctest --output-on-failure --test-dir build
+        run: ctest --output-on-failure --test-dir build -V
 
       - name: Run Valgrind
         continue-on-error: true
