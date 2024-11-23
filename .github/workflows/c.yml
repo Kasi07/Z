@@ -18,32 +18,42 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y libcunit1 libcunit1-doc libcunit1-dev cmake valgrind libcriterion-dev
+          # Install prerequisites for adding new repositories
+          sudo apt install -y wget gnupg lsb-release
+
+          # Add the LLVM GPG key
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 18 
+          sudo ./llvm.sh 18
 
-      - name: Verify clang versions
+          sudo apt install -y libcunit1 libcunit1-doc libcunit1-dev valgrind libcriterion-dev clang-format-18 clang-tidy-18
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.3'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify versions
         run: |
-          clang-format --version
-          clang-tidy --version
+          clang-format-18 --version
+          clang-tidy-18 --version
 
       - name: Configure CMake
-        run: cmake -B build -S .
+        run: cmake -B build -S . -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Run Formatter
-        run: cmake --build build --target format
+        run: cmake --build build --target format -v
 
       - name: Run Linter
-        continue-on-error: true
-        run: |
-          cmake --build build --target lint
+        run: cmake --build build --target lint
 
       - name: Build Project
         run: cmake --build build
 
       - name: Run Tests
-        run: ctest --output-on-failure --test-dir build -V
+        run: ctest --output-on-failure --test-dir build
 
       - name: Run Valgrind
         continue-on-error: true
