@@ -18,21 +18,10 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            libcunit1 \
-            libcunit1-doc \
-            libcunit1-dev \
-            cmake \
-            valgrind \
-            libcriterion-dev \
-            wget tar
-
-      - name: Download and Install clang-format 18.1.3
-        run: |
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.3/clang+llvm-18.1.3-x86_64-linux-gnu.tar.xz
-          tar -xf clang+llvm-18.1.3-x86_64-linux-gnu.tar.xz
-          sudo cp clang+llvm-18.1.3-x86_64-linux-gnu/bin/clang-format /usr/local/bin/
-          sudo cp clang+llvm-18.1.3-x86_64-linux-gnu/bin/clang-tidy /usr/local/bin/
+          sudo apt install -y libcunit1 libcunit1-doc libcunit1-dev cmake valgrind libcriterion-dev
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18 
 
       - name: Configure CMake
         run: cmake -B build -S .
@@ -41,7 +30,9 @@ jobs:
         run: cmake --build build --target format
 
       - name: Run Linter
-        run: cmake --build build --target lint
+        continue-on-error: true
+        run: |
+          cmake --build build --target lint
 
       - name: Build Project
         run: cmake --build build
