@@ -62,3 +62,6 @@ Makefile
 Testing/
 .cache/
 
+notes.md
+*.log
+make
