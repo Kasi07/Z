@@ -5,29 +5,58 @@ project(
     VERSION 0.0.1
     LANGUAGES C)
 
-# Define source, include, and output directories
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
-set(BUILD_DIR "${CMAKE_SOURCE_DIR}/build")
 set(TESTS_DIR "${CMAKE_SOURCE_DIR}/tests")
 set(BIN_DIR "${CMAKE_SOURCE_DIR}/bin")
+set(MOCK_TARGET_DIR "${CMAKE_SOURCE_DIR}/mock_target")
 
-# Create output directories
-file(MAKE_DIRECTORY ${BUILD_DIR} ${BIN_DIR})
+file(MAKE_DIRECTORY ${BIN_DIR})
 
-# Set the compiler and flags
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED True)
+set(CMAKE_C_EXTENSIONS OFF)
+
+add_compile_definitions(_POSIX_C_SOURCE=200809L)
+
 set(CMAKE_C_COMPILER gcc)
 set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic")
 set(CMAKE_C_FLAGS_DEBUG "-g -O0")
-set(CMAKE_C_FLAGS_RELEASE "-Oz")
+set(CMAKE_C_FLAGS_RELEASE "-Os")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Define an executable target "z" from source files
-add_executable(z "${SRC_DIR}/z.c")
-target_include_directories(z PRIVATE "${INCLUDE_DIR}")
+add_library(z_lib STATIC
+    ${SRC_DIR}/debugger.c
+)
+
+target_include_directories(z_lib PUBLIC
+    ${INCLUDE_DIR}
+)
+
+add_executable(z ${SRC_DIR}/main.c)
+target_link_libraries(z PRIVATE z_lib)
 set_target_properties(z PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
 
-# Define clang-tidy and clang-format commands as custom targets
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CRITERION REQUIRED criterion)
+
+if(CRITERION_FOUND)
+    target_include_directories(z_lib PUBLIC ${CRITERION_INCLUDE_DIRS})
+    target_link_libraries(z_lib PUBLIC ${CRITERION_LIBRARIES})
+
+    add_executable(z_tests "${TESTS_DIR}/test_debugger.c")
+    target_include_directories(z_tests PRIVATE ${INCLUDE_DIR})
+    target_link_libraries(z_tests PRIVATE z_lib criterion)
+
+    enable_testing()
+    add_test(NAME ZProjectTests COMMAND z_tests)
+else()
+    message(FATAL_ERROR "Criterion library not found. Please install Criterion.")
+endif()
+
+add_executable(mock_target ${MOCK_TARGET_DIR}/mock_target.c)
+set_target_properties(mock_target PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
+
 find_program(LINTER clang-tidy-18)
 find_program(FORMATTER clang-format-18)
 
@@ -43,34 +72,7 @@ add_custom_target(format
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
-# Tests using Criterion
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(CRITERION REQUIRED criterion)
-
-if(CRITERION_FOUND)
-    include_directories(${CRITERION_INCLUDE_DIRS})
-    link_directories(${CRITERION_LIBRARY_DIRS})
-    add_definitions(${CRITERION_CFLAGS_OTHER})
-
-    # Add test executable
-    add_executable(z_tests "${TESTS_DIR}/test_z.c")
-    target_include_directories(z_tests PRIVATE "${INCLUDE_DIR}")
-    target_link_libraries(z_tests ${CRITERION_LIBRARIES})
-
-    # Add test target
-    add_custom_target(check
-        COMMAND ${CMAKE_COMMAND} -E env CTEST_OUTPUT_ON_FAILURE=1 ${CMAKE_CTEST_COMMAND}
-        DEPENDS z_tests
-    )
-
-    enable_testing()
-    add_test(NAME ZProjectTests COMMAND z_tests)
-else()
-    message(FATAL_ERROR "Criterion library not found. Please install Criterion.")
-endif()
-
-# Define the "clean" target
 add_custom_target(clean_all
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${BIN_DIR}
 )
