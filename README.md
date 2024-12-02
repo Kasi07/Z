@@ -6,7 +6,7 @@ Anti-Anti-Debugger
 
 ```
 cmake -B build
-cmake --build build
+cmake --build build --clean-first
 ```
 
 ## Execute
