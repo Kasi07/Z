@@ -16,14 +16,12 @@ int start_dbg(debugger *dbg) {
         dbg->debugger_state_flag = DEBUGGER_RUNNING;
 
         if (start_target(dbg) != 0) {
-                FATAL("Failed to start target: %s", dbg->target_name);
-                free_dbg(dbg);
+                (void)(fprintf(stderr, "Failed to start target: %s", dbg->target_name));
                 return EXIT_FAILURE;
         }
 
         if (trace_target(dbg) != 0) {
-                FATAL("Failed to trace target: %s", dbg->target_name);
-                free_dbg(dbg);
+                (void)(fprintf(stderr, "Failed to trace target: %s", dbg->target_name));
                 return EXIT_FAILURE;
         }
 
