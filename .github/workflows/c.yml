@@ -12,50 +12,80 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v3
+    env:
+      BUILD_TYPE: Release
 
-      - name: Install dependencies
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Cache CMake and LLVM
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/llvm
+            ~/.cmake
+            build
+          key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-
+
+      - name: Install Dependencies
         run: |
           sudo apt update
-          # Install prerequisites for adding new repositories
-          sudo apt install -y wget gnupg lsb-release
-
-          # Add the LLVM GPG key
+          sudo apt install -y wget gnupg lsb-release build-essential pkg-config
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 18
+          sudo apt install -y libcunit1 libcunit1-doc libcunit1-dev valgrind libcriterion-dev \
+                              clang-format-18 clang-tidy-18 gcc g++
 
-          sudo apt install -y libcunit1 libcunit1-doc libcunit1-dev valgrind libcriterion-dev clang-format-18 clang-tidy-18
-
-      - name: Setup cmake
+      - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '3.28.3'
+          cmake-version: "3.28.3"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify versions
+      - name: Verify Tool Versions
         run: |
+          gcc --version
           clang-format-18 --version
           clang-tidy-18 --version
+          cmake --version
+          valgrind --version
+          ctest --version
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_VERBOSE_MAKEFILE=ON
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Run Formatter
-        run: cmake --build build --target format -v
+        run: cmake --build build --target format -- -j$(nproc)
 
       - name: Run Linter
-        run: cmake --build build --target lint
+        run: cmake --build build --target lint -- -j$(nproc)
 
       - name: Build Project
-        run: cmake --build build
+        run: cmake --build build -- -j$(nproc)
 
       - name: Run Tests
-        run: ctest --output-on-failure --test-dir build
+        run: |
+          ctest --output-on-failure --test-dir build
 
       - name: Run Valgrind
-        continue-on-error: true
         run: |
-          valgrind --leak-check=full bin/z
+          valgrind --leak-check=full ${PWD}/bin/z ${PWD}/bin/mock_target
+
+      - name: Upload Test Coverage (Optional)
+        if: success() || failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: build/test-results.xml
+
+      - name: Clean Build Artifacts
+        if: ${{ always() }}
+        run: cmake --build build --target clean_all
