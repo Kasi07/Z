@@ -2,6 +2,7 @@
 #include "macros.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -12,26 +13,28 @@ int main(int argc, char **argv) {
                 FATAL("Usage: %s <debug_target>\n", argv[0]);
         }
 
-        const char *target_name = argv[1];
+        const char *debuggee_name = argv[1];
 
-        if (!file_exists(target_name)) {
-                FATAL("Cannot find executable %s", target_name);
+        if (!file_exists(debuggee_name)) {
+                FATAL("Cannot find executable %s", debuggee_name);
         }
 
-        debugger dbg = {
-            .target_pid = -1,
-            .target_name = target_name,
-            .debugger_state_flag = DEBUGGER_IDLE,
-            .target_state_flag = TARGET_IDLE,
-        };
+        debugger dbg;
+        init_debugger(&dbg, debuggee_name);
 
-        if (start_dbg(&dbg) != 0) {
-                free_dbg(&dbg);
+        if (start_debuggee(&dbg) != 0) {
+                (void)(fprintf(stderr, "Failed to start debuggee.\n"));
+                free_debugger(&dbg);
                 return EXIT_FAILURE;
         }
 
-        free_dbg(&dbg);
+        if (trace_debuggee(&dbg) != 0) {
+                (void)(fprintf(stderr, "Error while tracing debuggee.\n"));
+                free_debugger(&dbg);
+                return EXIT_FAILURE;
+        }
 
+        free_debugger(&dbg);
         return EXIT_SUCCESS;
 }
 
