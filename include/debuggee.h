@@ -2,6 +2,8 @@
 
 #include <sys/types.h>
 
+#include "breakpoint_handler.h"
+
 typedef enum {
         IDLE = 0,
         RUNNING = 1,
@@ -13,13 +15,16 @@ typedef struct debuggee {
         pid_t pid;            /**< Process ID of the debuggee */
         const char *name;     /**< Name or path of the debuggee executable */
         debuggee_state state; /**< Current state of the debuggee process */
+        breakpoint_handler *bp_handler;
 } debuggee;
 
 void Help(void);
 
 int Run(debuggee *dbgee);
 int Registers(debuggee *dbgee);
+int Break(debuggee *dbgee);
 int Hbreak(debuggee *dbgee);
+int Breakpoints(debuggee *dbgee);
 
 int read_debug_register(pid_t pid, unsigned long offset, unsigned long *value);
 int set_debug_register(pid_t pid, unsigned long offset, unsigned long value);

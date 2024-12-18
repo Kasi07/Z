@@ -14,7 +14,7 @@
 #define DR3_OFFSET offsetof(struct user, u_debugreg[3])
 #define DR7_OFFSET offsetof(struct user, u_debugreg[7])
 
-#define TEST_BREAKPOINT_ADDR 0x11c9
+#define TEST_BREAKPOINT_ADDR 0x11d1
 #define DR7_ENABLE_LOCAL(bpno) (0x1 << ((bpno) * 2))
 #define DR7_RW_WRITE(bpno) (0x1 << (16 + (bpno) * 4))
 
@@ -109,6 +109,8 @@ int Registers(debuggee *dbgee) {
         return EXIT_SUCCESS;
 }
 
+int Break(debuggee *dbgee) {}
+
 int Hbreak(debuggee *dbgee) {
         // Note: this is not final. This is just for testing the Registers
         // method.
@@ -124,6 +126,10 @@ int Hbreak(debuggee *dbgee) {
         }
 
         return EXIT_SUCCESS;
+}
+
+int Breakpoints(debuggee *dbgee) {
+        return list_breakpoints(dbgee->bp_handler);
 }
 
 int configure_dr7(pid_t pid, int bpno) {
