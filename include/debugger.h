@@ -14,3 +14,4 @@ void free_debugger(debugger *dbg);
 
 int start_debuggee(debugger *dbg);
 int trace_debuggee(debugger *dbg);
+int DebuggerRestart(debugger *dbg);

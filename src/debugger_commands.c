@@ -23,6 +23,7 @@ static const command_mapping command_map[] = {
     {"step", DBG_STEP},
     {"over", DBG_STEP_OVER},
     {"out", DBG_STEP_OUT},
+    {"restart", DBG_RESTART},
 };
 
 enum {
@@ -144,6 +145,12 @@ int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg) {
         case DBG_STEP_OUT:
                 if (StepOut(&dbg->dbgee) != 0) {
                         printf("Failed to step out.\n");
+                }
+                return DONT_PROMPT_USER_AGAIN;
+
+        case DBG_RESTART:
+                if (DebuggerRestart(dbg) != 0) {
+                        printf("Failed to restart debugger.\n");
                 }
                 return DONT_PROMPT_USER_AGAIN;
 

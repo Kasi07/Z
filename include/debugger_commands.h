@@ -17,6 +17,7 @@ typedef enum {
         DBG_STEP,
         DBG_STEP_OVER,
         DBG_STEP_OUT,
+        DBG_RESTART,
         UNKNOWN
 } command_t;
 

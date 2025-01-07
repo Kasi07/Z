@@ -147,3 +147,30 @@ int trace_debuggee(debugger *dbg) {
 
         return EXIT_SUCCESS;
 }
+
+int DebuggerRestart(debugger *dbg) {
+    if ((dbg->dbgee.pid > 0) &&
+        (dbg->dbgee.state == RUNNING || dbg->dbgee.state == STOPPED)) {
+        if (kill(dbg->dbgee.pid, SIGKILL) == -1) {
+            perror("Failed to kill the old debuggee");
+            return EXIT_FAILURE;
+        }
+        waitpid(dbg->dbgee.pid, NULL, 0);
+    }
+
+    if (remove_all_breakpoints(&dbg->dbgee) != EXIT_SUCCESS) {
+        fprintf(stderr, "Failed to remove all breakpoints.\n");
+        return EXIT_FAILURE;
+    }
+
+    dbg->dbgee.pid = -1;
+    dbg->dbgee.state = IDLE;
+    dbg->dbgee.has_run = false;
+
+    if (start_debuggee(dbg) != EXIT_SUCCESS) {
+        fprintf(stderr, "Failed to restart debuggee.\n");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
