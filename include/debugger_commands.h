@@ -1,6 +1,7 @@
 #pragma once
 
 #include "debugger.h"
+#include "linenoise.h"
 
 typedef enum {
         CLI_EXIT,
@@ -17,6 +18,7 @@ typedef enum {
         DBG_STEP,
         DBG_STEP_OVER,
         DBG_STEP_OUT,
+        CLI_CLEAR,
         UNKNOWN
 } command_t;
 
@@ -26,6 +28,7 @@ typedef struct {
 } command_mapping;
 
 command_t get_command_type(const char *command);
+void completion(const char *buf, linenoiseCompletions *lc);
 
 int read_and_handle_user_command(debugger *dbg);
 int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg);

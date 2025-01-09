@@ -1,3 +1,5 @@
+#include "linenoise.h"
+#include <errno.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,11 +25,13 @@ static const command_mapping command_map[] = {
     {"step", DBG_STEP},
     {"over", DBG_STEP_OVER},
     {"out", DBG_STEP_OUT},
+    {"clear", CLI_CLEAR},
 };
 
 enum {
         PROMPT_USER_AGAIN = 1,
         DONT_PROMPT_USER_AGAIN = 0,
+        LINENOISE_MAX_HISTORY_LENGTH = 100,
 };
 
 command_t get_command_type(const char *command) {
@@ -42,6 +46,17 @@ command_t get_command_type(const char *command) {
         return UNKNOWN;
 }
 
+void completion(const char *buf, linenoiseCompletions *lc) {
+        size_t buf_len = strlen(buf);
+        size_t map_size = sizeof(command_map) / sizeof(command_map[0]);
+
+        for (size_t i = 0; i < map_size; ++i) {
+                if (strncmp(buf, command_map[i].command, buf_len) == 0) {
+                        linenoiseAddCompletion(lc, command_map[i].command);
+                }
+        }
+}
+
 int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg) {
         switch (cmd_type) {
         case UNKNOWN:
@@ -52,7 +67,7 @@ int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg) {
                 free_debugger(dbg);
                 printf("Exiting debugger.\n");
                 exit(EXIT_SUCCESS);
-                return PROMPT_USER_AGAIN;
+                return DONT_PROMPT_USER_AGAIN;
 
         case CLI_HELP:
                 Help();
@@ -147,6 +162,10 @@ int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg) {
                 }
                 return DONT_PROMPT_USER_AGAIN;
 
+        case CLI_CLEAR:
+                linenoiseClearScreen();
+                return PROMPT_USER_AGAIN;
+
         default:
                 printf("Unhandled command type.\n");
                 return PROMPT_USER_AGAIN;
@@ -155,35 +174,22 @@ int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg) {
 
 int read_and_handle_user_command(debugger *dbg) {
         char *input = NULL;
-        size_t len = 0;
-        ssize_t read_len;
+
+        linenoiseHistorySetMaxLen(LINENOISE_MAX_HISTORY_LENGTH);
+        linenoiseSetCompletionCallback(completion);
 
         while (true) {
-                printf("Z: ");
-                (void)(fflush(stdout));
-                read_len = getline(&input, &len, stdin);
-                if (read_len == -1) {
-                        if (feof(stdin)) {
-                                free(input);
-                                free_debugger(dbg);
-                                exit(0);
-                        } else {
-                                perror("getlinehbreak");
-                                printf("Failed to read command. Continuing "
-                                       "execution.\n");
+                input = linenoise("Z: ");
+                if (input == NULL) {
+                        if (errno == EAGAIN) {
+                                handle_user_input(dbg, CLI_EXIT, "");
+                                continue;
                         }
-
-                        free(input);
-
-                        if (ptrace(PTRACE_CONT, dbg->dbgee.pid, NULL, NULL) ==
-                            -1) {
-                                perror("ptrace CONT");
-                                return EXIT_FAILURE;
-                        }
-
-                        dbg->dbgee.state = RUNNING;
-                        return EXIT_SUCCESS;
+                        free_debugger(dbg);
+                        exit(EXIT_FAILURE);
                 }
+
+                linenoiseHistoryAdd(input);
 
                 input[strcspn(input, "\n")] = '\0';
 
