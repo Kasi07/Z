@@ -20,6 +20,7 @@ void init_debugger(debugger *dbg, const char *debuggee_name) {
         // Could be NULL. TODO: Catch this.
         dbg->dbgee.bp_handler = init_breakpoint_handler();
         dbg->state = DETACHED;
+        dbg->catch_flags = 0;
 }
 
 void free_debugger(debugger *dbg) {
@@ -78,10 +79,24 @@ int start_debuggee(debugger *dbg) {
         return EXIT_SUCCESS;
 }
 
-int trace_debuggee(debugger *dbg) {
-        bool ptrace_options_set = false;
+void update_ptrace_options(debugger *dbg) {
+        unsigned long opts = PTRACE_O_EXITKILL | PTRACE_O_TRACEEXEC;
+        if (dbg->catch_flags & CATCH_FORK) {
+                opts |= PTRACE_O_TRACEFORK;
+        }
+        if (dbg->catch_flags & CATCH_THREAD) {
+                opts |= PTRACE_O_TRACECLONE;
+        }
+        if (ptrace(PTRACE_SETOPTIONS, dbg->dbgee.pid, 0, opts) == -1) {
+                perror("ptrace SETOPTIONS");
+                dbg->dbgee.pid = -1;
+                dbg->dbgee.state = TERMINATED;
+        }
+}
 
+int trace_debuggee(debugger *dbg) {
         dbg->state = ATTACHED;
+
         while (dbg->state == ATTACHED) {
                 int status;
                 pid_t pid = waitpid(dbg->dbgee.pid, &status, 0);
@@ -93,18 +108,8 @@ int trace_debuggee(debugger *dbg) {
                         perror("waitpid");
                         return EXIT_FAILURE;
                 }
-
-                if (ptrace_options_set == false) {
-                        if (ptrace(PTRACE_SETOPTIONS, dbg->dbgee.pid, 0,
-                                   PTRACE_O_EXITKILL | PTRACE_O_TRACEEXEC) ==
-                            -1) {
-                                perror("ptrace SETOPTIONS");
-                                dbg->dbgee.pid = -1;
-                                dbg->dbgee.state = TERMINATED;
-                                return EXIT_FAILURE;
-                        }
-                        ptrace_options_set = true;
-                }
+        
+                update_ptrace_options(dbg); // Set initial ptrace options
 
                 if (WIFEXITED(status)) {
                         printf("Child %d exited with status %d.\n", pid,
@@ -120,6 +125,19 @@ int trace_debuggee(debugger *dbg) {
                         dbg->state = DETACHED;
                         dbg->dbgee.state = TERMINATED;
                         break;
+                }
+
+                if (WIFSTOPPED(status)) {
+                        unsigned long event = (status >> 16) & 0xffff;
+                        if (event == PTRACE_EVENT_FORK) {
+                                printf("Process fork event\n");
+                        } else if (event == PTRACE_EVENT_VFORK) {
+                                printf("Process vfork event\n");
+                        } else if (event == PTRACE_EVENT_CLONE) {
+                                printf("Thread creation event\n");
+                        } else if (event == PTRACE_EVENT_EXEC) {
+                                printf("Module loading (exec) event\n");
+                        }
                 }
 
                 if (WIFSTOPPED(status)) {
@@ -142,6 +160,8 @@ int trace_debuggee(debugger *dbg) {
                         if (read_and_handle_user_command(dbg) != EXIT_SUCCESS) {
                                 return EXIT_FAILURE;
                         }
+
+                        update_ptrace_options(dbg);
                 }
         }
 

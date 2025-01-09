@@ -3,7 +3,7 @@
 
 int main(void) {
         (void)(setvbuf(stdout, NULL, _IONBF, 0));
-
+        fork();
         printf("Mock target started with PID %d\n", getpid());
 
         int i = 3;

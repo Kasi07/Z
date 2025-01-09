@@ -26,6 +26,7 @@ static const command_mapping command_map[] = {
     {"over", DBG_STEP_OVER},
     {"out", DBG_STEP_OUT},
     {"clear", CLI_CLEAR},
+    {"catch", DBG_CATCHPOINT},
 };
 
 enum {
@@ -164,6 +165,48 @@ int handle_user_input(debugger *dbg, command_t cmd_type, const char *arg) {
 
         case CLI_CLEAR:
                 linenoiseClearScreen();
+                return PROMPT_USER_AGAIN;
+
+        case DBG_CATCHPOINT:
+                if (!arg) {
+                        printf("Usage: catch "
+                               "<fork|exec|thread|all|disable|list>\n");
+                        return 0;
+                }
+                if (strcmp(arg, "fork") == 0) {
+                        dbg->catch_flags |= (1 << CATCH_FORK);
+                        printf("Catching fork events enabled.\n");
+                } else if (strcmp(arg, "exec") == 0) {
+                        dbg->catch_flags |= (1 << CATCH_EXEC);
+                        printf("Catching exec events enabled.\n");
+                } else if (strcmp(arg, "thread") == 0) {
+                        dbg->catch_flags |= (1 << CATCH_THREAD);
+                        printf("Catching thread events enabled.\n");
+                } else if (strcmp(arg, "all") == 0) {
+                        dbg->catch_flags = (1 << CATCH_FORK) |
+                                           (1 << CATCH_EXEC) |
+                                           (1 << CATCH_THREAD);
+                        printf("Catching all events enabled.\n");
+                } else if (strcmp(arg, "disable") == 0) {
+                        dbg->catch_flags = 0;
+                        printf("All catch events disabled.\n");
+                } else if (strcmp(arg, "list") == 0) {
+                        printf("Current catch settings:\n");
+                        if (dbg->catch_flags & (1 << CATCH_FORK)) {
+                                printf(" - fork\n");
+                        }
+                        if (dbg->catch_flags & (1 << CATCH_EXEC)) {
+                                printf(" - exec\n");
+                        }
+                        if (dbg->catch_flags & (1 << CATCH_THREAD)) {
+                                printf(" - thread\n");
+                        }
+                        if (dbg->catch_flags == 0) {
+                                printf(" - none\n");
+                        }
+                } else {
+                        printf("Unknown catch option: %s\n", arg);
+                }
                 return PROMPT_USER_AGAIN;
 
         default:

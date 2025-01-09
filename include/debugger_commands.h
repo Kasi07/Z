@@ -19,7 +19,8 @@ typedef enum {
         DBG_STEP_OVER,
         DBG_STEP_OUT,
         CLI_CLEAR,
-        UNKNOWN
+        UNKNOWN,
+        DBG_CATCHPOINT
 } command_t;
 
 typedef struct {
